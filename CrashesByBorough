@@ -1,0 +1,61 @@
+import pandas as pd
+import plotly.express as px
+
+
+file_path = "/Users/bellahewardt/Desktop/Motor_Vehicle_Collisions_-_Crashes.csv"
+df = pd.read_csv(file_path, low_memory=False)
+
+crash_causes_df = df[['BOROUGH', 
+                      'CONTRIBUTING FACTOR VEHICLE 1', 
+                      'CONTRIBUTING FACTOR VEHICLE 2',
+                      'CONTRIBUTING FACTOR VEHICLE 3',
+                      'CONTRIBUTING FACTOR VEHICLE 4',
+                      'CONTRIBUTING FACTOR VEHICLE 5']].copy()
+
+crash_causes_df.dropna(subset=['BOROUGH'], inplace=True)
+
+melted = crash_causes_df.melt(id_vars='BOROUGH', 
+                              value_vars=[
+                                  'CONTRIBUTING FACTOR VEHICLE 1', 
+                                  'CONTRIBUTING FACTOR VEHICLE 2',
+                                  'CONTRIBUTING FACTOR VEHICLE 3',
+                                  'CONTRIBUTING FACTOR VEHICLE 4',
+                                  'CONTRIBUTING FACTOR VEHICLE 5'],
+                              var_name='VEHICLE', value_name='CAUSE')
+
+melted = melted.dropna(subset=['CAUSE'])
+melted = melted[melted['CAUSE'].str.upper() != 'UNSPECIFIED']
+
+cause_by_borough = melted.groupby(['BOROUGH', 'CAUSE']).size().reset_index(name='COUNT')
+
+
+top_causes = (
+    cause_by_borough.groupby("CAUSE")["COUNT"]
+    .sum()
+    .sort_values(ascending=False)
+    .head(5)
+    .index
+)
+
+filtered_data = cause_by_borough[cause_by_borough["CAUSE"].isin(top_causes)]
+
+
+fig = px.bar(
+    filtered_data,
+    x="BOROUGH",
+    y="COUNT",
+    color="CAUSE",
+    title="Top 5 Contributing Factors to Crashes by Borough",
+    labels={"COUNT": "Number of Crashes", "BOROUGH": "Borough", "CAUSE": "Cause"},
+    barmode="group",
+    height=600
+)
+
+fig.update_layout(
+    xaxis_title="Borough",
+    yaxis_title="Number of Crashes",
+    legend_title="Cause"
+)
+
+fig.show()
+
